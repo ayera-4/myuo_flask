@@ -42,13 +42,16 @@ def token_rquired(f):
 			data = jwt.decode(token, app.config['SECRET_KEY'])
 			current_user = User.query.filter_by(public_id=data['public_id']).first()
 
-		except f(current_user, *args, **kwargs)
+		except: f(current_user, *args, **kwargs)
 
 	return decorated
 
 @app.route('/user', methods=['GET'])
 @token_rquired
 def get_all_users(current_user):
+
+	if not current_user.admin:
+		return jsonify({'message' : 'Cannot perform that function!'})
 
 	users = User.query.all()
 
@@ -68,6 +71,9 @@ def get_all_users(current_user):
 @token_rquired
 def get_one_user(current_user, public_id):
 
+	if not current_user.admin:
+		return jsonify({'message' : 'Cannot perform that function!'})
+
 	user = User.query.filter_by(public_id=public_id).first()
 
 	if not user:
@@ -84,6 +90,10 @@ def get_one_user(current_user, public_id):
 @app.route('/user', methods=['POST'])
 @token_rquired
 def create_user(current_user):
+
+	if not current_user.admin:
+		return jsonify({'message' : 'Cannot perform that function!'})
+
 	data = request.get_json()
 
 	hashed_password = generate_password_hash(data['password'], method='sha256')
@@ -97,6 +107,9 @@ def create_user(current_user):
 @app.route('/user/<name>', methods=['PUT'])
 @token_rquired
 def promote_user(current_user, name):
+
+	if not current_user.admin:
+		return jsonify({'message' : 'Cannot perform that function!'})
 
 	user = User.query.filter_by(name=name).first()
 
@@ -113,7 +126,8 @@ def promote_user(current_user, name):
 @token_rquired
 def delete_user(current_user, name):
 
-	
+	if not current_user.admin:
+		return jsonify({'message' : 'Cannot perform that function!'})
 
 	user = User.query.filter_by(name=name).first()
 
