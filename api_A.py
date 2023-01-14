@@ -27,7 +27,7 @@ class Todo(db.Model):
 	complete = db.Column(db.Boolean)
 	user_id = db.Column(db.Integer)
 
-def token_rquired(f):
+def token_required(f):
 	@wraps(f)
 	def decorated(*args, **kwargs):
 		token = None
@@ -42,12 +42,15 @@ def token_rquired(f):
 			data = jwt.decode(token, app.config['SECRET_KEY'])
 			current_user = User.query.filter_by(public_id=data['public_id']).first()
 
-		except: f(current_user, *args, **kwargs)
+		except:
+			return jsonify({'message' : 'Token is invalid'}), 401
+
+		return f(current_user, *args, **kwargs)
 
 	return decorated
 
 @app.route('/user', methods=['GET'])
-@token_rquired
+@token_required
 def get_all_users(current_user):
 
 	if not current_user.admin:
@@ -68,7 +71,7 @@ def get_all_users(current_user):
 	return jsonify({'users':output})
 
 @app.route('/user/<public_id>', methods=['GET'])
-@token_rquired
+@token_required
 def get_one_user(current_user, public_id):
 
 	if not current_user.admin:
@@ -88,7 +91,7 @@ def get_one_user(current_user, public_id):
 	return jsonify({'user' : user_data})
 
 @app.route('/user', methods=['POST'])
-@token_rquired
+@token_required
 def create_user(current_user):
 
 	if not current_user.admin:
@@ -105,7 +108,7 @@ def create_user(current_user):
 	return jsonify({'message' : 'New user created!'})
 
 @app.route('/user/<name>', methods=['PUT'])
-@token_rquired
+@token_required
 def promote_user(current_user, name):
 
 	if not current_user.admin:
@@ -123,7 +126,7 @@ def promote_user(current_user, name):
 
 
 @app.route('/user/<name>', methods=['DELETE'])
-@token_rquired
+@token_required
 def delete_user(current_user, name):
 
 	if not current_user.admin:
@@ -156,6 +159,74 @@ def login( ):
 
 		return jsonify({'token' : jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])})
 
+
+@app.route('/todo', methods=['GET'])
+@token_rquired
+def get_all_todos(current_user):
+
+	todos = Todo.query.filter_by(user_id=current_user.id).all()
+
+	output = []
+
+	for todo in todos:
+		todo_data["id"] = todo.id
+		todo_data["text"] = todos.text
+		todo_data["complete"] = todos.complete
+		output.append(todo_data)
+
+	return jsonify({'todos' : output})
+
+@app.route('/todo/<todo_id>', methods=['GET'])
+def get_one_todo(current_user, todo_id):
+
+	todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
+
+	if not todo:
+		return jsonify({'message' : 'No todo found!'})
+
+	todo_data = {}
+	todo_data["id"] = todo.id
+	todo_data["text"] = todo.text
+	todo_data["complete"] = todo.complete
+
+	return jsonify({'todo' : todo_data})
+
+@app.route('/todo', methods=['POST'])
+def create_todo(current_user):
+
+	data = request.get_json()
+
+	new_todo = Todo(text=data['text'], complete=False, user_id=current_user.id)
+	db.session.add(new_todo)
+	db.session.commit()
+
+	return jsonify({'message' : "Todo has been created"})
+
+@app.route('/todo/<todo_id>', methods=['PUT'])
+def complete_todo(current_user, todo_id):
+
+	todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
+
+	if not todo:
+		return jsonify({'message' : "No todo found!"})
+
+	todo.complete = True
+	db.session.commit()
+
+	return jsonify({'message' : "Todo has been completed"})
+
+@app.route('/todo/<todo_id>', methods=['DELETE'])
+def delete_todo(current_user, todo_id):
+
+	todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
+
+	if not todo:
+		return jsonify({'message' : "No todo found!"})
+
+	db.session.delete(todo)
+	db.session.commit()
+
+	return jsonify({'message' : "Todo has been deleted"})
 
 if __name__ == '__main__':
 	app.run(debug=True)
