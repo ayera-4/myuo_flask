@@ -4,6 +4,7 @@ import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import datetime
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -26,8 +27,28 @@ class Todo(db.Model):
 	complete = db.Column(db.Boolean)
 	user_id = db.Column(db.Integer)
 
+def token_rquired(f):
+	@wraps(f)
+	def decorated(*args, **kwargs):
+		token = None
+
+		if 'x-access-token' in request.headers:
+			token = request.headers['x-access-token']
+
+		if not token:
+			return jsonify({'message' : 'Token is missing'}), 401
+
+		try:
+			data = jwt.decode(token, app.config['SECRET_KEY'])
+			current_user = User.query.filter_by(public_id=data['public_id']).first()
+
+		except f(current_user, *args, **kwargs)
+
+	return decorated
+
 @app.route('/user', methods=['GET'])
-def get_all_users():
+@token_rquired
+def get_all_users(current_user):
 
 	users = User.query.all()
 
@@ -44,7 +65,8 @@ def get_all_users():
 	return jsonify({'users':output})
 
 @app.route('/user/<public_id>', methods=['GET'])
-def get_one_user(public_id):
+@token_rquired
+def get_one_user(current_user, public_id):
 
 	user = User.query.filter_by(public_id=public_id).first()
 
@@ -60,7 +82,8 @@ def get_one_user(public_id):
 	return jsonify({'user' : user_data})
 
 @app.route('/user', methods=['POST'])
-def create_user():
+@token_rquired
+def create_user(current_user):
 	data = request.get_json()
 
 	hashed_password = generate_password_hash(data['password'], method='sha256')
@@ -72,7 +95,8 @@ def create_user():
 	return jsonify({'message' : 'New user created!'})
 
 @app.route('/user/<name>', methods=['PUT'])
-def promote_user(name):
+@token_rquired
+def promote_user(current_user, name):
 
 	user = User.query.filter_by(name=name).first()
 
@@ -86,7 +110,11 @@ def promote_user(name):
 
 
 @app.route('/user/<name>', methods=['DELETE'])
-def delete_user(name):
+@token_rquired
+def delete_user(current_user, name):
+
+	
+
 	user = User.query.filter_by(name=name).first()
 
 	if not user:
@@ -98,7 +126,7 @@ def delete_user(name):
 	return jsonify({'message' : 'User has been deleted!'})
 
 @app.route('/login', methods=['POST'])
-def login():
+def login( ):
 	auth = request.authorization
 
 	if not auth or not auth.username or not auth.password:
