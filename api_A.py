@@ -161,7 +161,7 @@ def login( ):
 
 
 @app.route('/todo', methods=['GET'])
-@token_rquired
+@token_required
 def get_all_todos(current_user):
 
 	todos = Todo.query.filter_by(user_id=current_user.id).all()
@@ -177,6 +177,7 @@ def get_all_todos(current_user):
 	return jsonify({'todos' : output})
 
 @app.route('/todo/<todo_id>', methods=['GET'])
+@token_required
 def get_one_todo(current_user, todo_id):
 
 	todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
@@ -192,6 +193,7 @@ def get_one_todo(current_user, todo_id):
 	return jsonify({'todo' : todo_data})
 
 @app.route('/todo', methods=['POST'])
+@token_required
 def create_todo(current_user):
 
 	data = request.get_json()
@@ -203,6 +205,7 @@ def create_todo(current_user):
 	return jsonify({'message' : "Todo has been created"})
 
 @app.route('/todo/<todo_id>', methods=['PUT'])
+@token_required
 def complete_todo(current_user, todo_id):
 
 	todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
@@ -216,6 +219,7 @@ def complete_todo(current_user, todo_id):
 	return jsonify({'message' : "Todo has been completed"})
 
 @app.route('/todo/<todo_id>', methods=['DELETE'])
+@token_required
 def delete_todo(current_user, todo_id):
 
 	todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
