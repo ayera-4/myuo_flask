@@ -39,7 +39,7 @@ def token_required(f):
 			return jsonify({'message' : 'Token is missing'}), 401
 
 		try:
-			data = jwt.decode(token, app.config['SECRET_KEY'])
+			data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
 			current_user = User.query.filter_by(public_id=data['public_id']).first()
 
 		except:
@@ -53,9 +53,7 @@ def token_required(f):
 @token_required
 def get_all_users(current_user):
 
-	if not current_user.admin:
-		return jsonify({'message' : 'Cannot perform that function!'})
-
+	
 	users = User.query.all()
 
 	output = []
@@ -74,9 +72,7 @@ def get_all_users(current_user):
 @token_required
 def get_one_user(current_user, public_id):
 
-	if not current_user.admin:
-		return jsonify({'message' : 'Cannot perform that function!'})
-
+	
 	user = User.query.filter_by(public_id=public_id).first()
 
 	if not user:
@@ -94,9 +90,7 @@ def get_one_user(current_user, public_id):
 @token_required
 def create_user(current_user):
 
-	if not current_user.admin:
-		return jsonify({'message' : 'Cannot perform that function!'})
-
+	
 	data = request.get_json()
 
 	hashed_password = generate_password_hash(data['password'], method='sha256')
@@ -111,9 +105,7 @@ def create_user(current_user):
 @token_required
 def promote_user(current_user, name):
 
-	if not current_user.admin:
-		return jsonify({'message' : 'Cannot perform that function!'})
-
+	
 	user = User.query.filter_by(name=name).first()
 
 	if not user:
@@ -129,9 +121,7 @@ def promote_user(current_user, name):
 @token_required
 def delete_user(current_user, name):
 
-	if not current_user.admin:
-		return jsonify({'message' : 'Cannot perform that function!'})
-
+	
 	user = User.query.filter_by(name=name).first()
 
 	if not user:
@@ -157,7 +147,9 @@ def login( ):
 	if check_password_hash(user.password, auth.password):
 		token = jwt.encode({'public_id' : user.public_id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, app.config['SECRET_KEY'], algorithm='HS256')
 
-		return jsonify({'token' : jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])})
+		return jsonify({'token' : token})
+
+	return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Login required"'})
 
 
 @app.route('/todo', methods=['GET'])
@@ -169,9 +161,10 @@ def get_all_todos(current_user):
 	output = []
 
 	for todo in todos:
+		todo_data = {}
 		todo_data["id"] = todo.id
-		todo_data["text"] = todos.text
-		todo_data["complete"] = todos.complete
+		todo_data["text"] = todo.text
+		todo_data["complete"] = todo.complete
 		output.append(todo_data)
 
 	return jsonify({'todos' : output})
@@ -231,6 +224,7 @@ def delete_todo(current_user, todo_id):
 	db.session.commit()
 
 	return jsonify({'message' : "Todo has been deleted"})
+
 
 if __name__ == '__main__':
 	app.run(debug=True)
